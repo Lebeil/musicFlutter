@@ -39,6 +39,7 @@ class _MyHomePageState extends State<MyHomePage> {
   ];
 
   late Musique maMusiqueActuelle;
+  double position = 0;
 
   @override
   void initState() {
@@ -81,7 +82,19 @@ class _MyHomePageState extends State<MyHomePage> {
               children: <Widget>[
                 texteAvecStyle('0:0', 0.8),
                 texteAvecStyle('0:22', 0.8)
-              ]
+              ],
+            ),
+            Slider(
+              value: position,
+              min: 0,
+              max: 30,
+              inactiveColor: Colors.white,
+              activeColor: Colors.red,
+              onChanged: (double d) {
+                setState((){
+                  position = d;
+                });
+              },
             )
           ],
         ),
