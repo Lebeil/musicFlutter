@@ -102,8 +102,7 @@ class _MyHomePageState extends State<MyHomePage> {
               activeColor: Colors.red,
               onChanged: (double d) {
                 setState((){
-                  Duration nouvelleDuration = Duration(seconds: d.toInt());
-                  position = nouvelleDuration;
+                  audioPlayer.seek(d);
                 });
               },
             )
