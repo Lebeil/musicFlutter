@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:audioplayer/audioplayer.dart';
 import 'package:flutter/material.dart';
 import 'musique.dart';
 
@@ -38,13 +41,20 @@ class _MyHomePageState extends State<MyHomePage> {
     Musique('Theme Flutter', 'Coda', 'assets/deux.jpg', 'https://codabee.com/wp-content/uploads/2018/06/deux.mp3'),
   ];
 
+  late AudioPlayer audioPlayer;
+  late StreamSubscription positionSub;
+  late StreamSubscription stateSubscription;
   late Musique maMusiqueActuelle;
-  double position = 0;
+  Duration position = const Duration(seconds: 0);
+  Duration duree = const Duration(seconds: 10);
+  PlayerState statut = PlayerState.stopped;
+  int index = 0;
 
   @override
   void initState() {
     super.initState();
-    maMusiqueActuelle = maListeDeMusiques[0];
+    maMusiqueActuelle = maListeDeMusiques[index];
+    configurationAudio();
   }
 
   @override
@@ -73,26 +83,27 @@ class _MyHomePageState extends State<MyHomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 bouton(Icons.fast_rewind, 30, ActionMusic.rewind),
-                bouton(Icons.play_arrow, 45, ActionMusic.play),
+                bouton((statut == PlayerState.playing) ? Icons.pause : Icons.play_arrow, 45, (statut == PlayerState.playing) ? ActionMusic.pause : ActionMusic.play),
                 bouton(Icons.fast_forward, 30, ActionMusic.forward),
               ]
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                texteAvecStyle('0:0', 0.8),
-                texteAvecStyle('0:22', 0.8)
+                texteAvecStyle(fromDuration(position), 0.8),
+                texteAvecStyle(fromDuration(duree), 0.8)
               ],
             ),
             Slider(
-              value: position,
+              value: position.inSeconds.toDouble(),
               min: 0,
               max: 30,
               inactiveColor: Colors.white,
               activeColor: Colors.red,
               onChanged: (double d) {
                 setState((){
-                  position = d;
+                  Duration nouvelleDuration = Duration(seconds: d.toInt());
+                  position = nouvelleDuration;
                 });
               },
             )
@@ -110,16 +121,16 @@ class _MyHomePageState extends State<MyHomePage> {
       onPressed: (){
         switch (action) {
           case ActionMusic.play:
-            print('play');
+            play();
             break;
           case ActionMusic.pause:
-            print('pause');
-            break;
-          case ActionMusic.rewind:
-            print('rewind');
+            pause();
             break;
           case ActionMusic.forward:
-            print('forward');
+            forward();
+            break;
+          case ActionMusic.rewind:
+            rewind();
             break;
         }
       },
@@ -139,11 +150,89 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  void configurationAudio() {
+    audioPlayer = AudioPlayer();
+    positionSub = audioPlayer.onAudioPositionChanged.listen(
+        (pos) => setState(()=> position = pos)
+    );
+    stateSubscription = audioPlayer.onPlayerStateChanged.listen((state){
+      if (state == AudioPlayerState.PLAYING){
+        setState((){
+          duree = audioPlayer.duration;
+        });
+      } else if (state == AudioPlayerState.STOPPED) {
+        setState((){
+          statut = PlayerState.stopped;
+        });
+      }
+    }, onError: (message) {
+      print('erreur: $message');
+      setState((){
+        statut = PlayerState.stopped;
+        duree = const Duration(seconds: 0);
+        position = const Duration(seconds: 0);
+      });
+    }
+    );
+  }
+
+  Future play() async {
+    await audioPlayer.play(maMusiqueActuelle.urlSong);
+    setState(() {
+      statut = PlayerState.playing;
+    });
+  }
+
+  Future pause() async {
+    await audioPlayer.pause();
+    setState(() {
+      statut = PlayerState.paused;
+    });
+  }
+
+  void forward() {
+    if (index == maListeDeMusiques.length - 1) {
+      index = 0;
+    } else {
+      index++;
+    }
+    maMusiqueActuelle = maListeDeMusiques[index];
+    audioPlayer.stop();
+    configurationAudio();
+    play();
+  }
+
+  String fromDuration(Duration duree) {
+    print(duree);
+    return duree.toString().split('.').first;
+  }
+
+  void rewind() {
+    if (position > Duration(seconds: 3)) {
+      audioPlayer.seek(0.00);
+    } else {
+      if (index == 0) {
+        index = maListeDeMusiques.length - 1;
+      } else {
+        index--;
+      }
+      maMusiqueActuelle = maListeDeMusiques[index];
+      audioPlayer.stop();
+      configurationAudio();
+      play();
+    }
+  }
 }
 
 enum ActionMusic {
   play,
   pause,
   rewind,
-  forward,
+  forward
+}
+
+enum PlayerState {
+  playing,
+  stopped,
+  paused
 }
